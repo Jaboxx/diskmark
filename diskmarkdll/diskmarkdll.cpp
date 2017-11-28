@@ -100,7 +100,8 @@ namespace diskmark
 	BOOL timeout_4kwrite = 0, timeout_4kread = 0, timeout_4k64write = 0, timeout_4k64read = 0, timeout_serialwrite = 0, timeout_serialread = 0;
 	BOOL is_test_4k = 1, is_test_4k64 = 1, is_test_serial = 1;
 	HANDLE hwritestart4k, hreadstart4k, hwritestart4k64, hreadstart4k64, hwritestartserial, hreadstartserial;
-	clock_t waittime = 60000, min_time = 30000;
+	HANDLE hwrite4k_end, hread4k_end, hwrite4k64_end, hread4k64_end, hwriteserial_end, hreadserial_end;
+	clock_t waittime = 10000, min_time = 30000;
 	char part_c = 'E';
 	UINT64 testfilesize = 1024 * 1024 * 1024;
 
@@ -186,14 +187,14 @@ namespace diskmark
 	{//bgin 4k info collect
 		memset(&g_EtwEventCounters, 0, sizeof(struct ETWEventCounters));
 		
-		WaitForSingleObject(hwritestart4k, INFINITE);
+		SetEvent(hwritestart4k);
 		Sleep(3000);
 		printf("begin 4K write\n");
 		//write
 		writeprocessdata.initialio = g_EtwEventCounters.ullIOWrite;
 		writeprocessdata.begin = clock();
 		writeprocessdata.init_totaldata = writespeeddata.totaldata;
-		while (!iswriteend)
+		while (writeprocessdata.oldtotaldata<testfilesize*1.3||clock()-writeprocessdata.begin<min_time)
 		{
 
 			writeprocessdata.oldio = g_EtwEventCounters.ullIOWrite;
@@ -206,7 +207,7 @@ namespace diskmark
 			printf("iowrite: %d iops ", writeprocessdata.instant_iops);
 			printf(" %f mb/s \n", writeprocessdata.instant_mbytespersec);
 			if (clock() - writeprocessdata.begin > waittime)
-				timeout_4kwrite = TRUE;
+						break;
 
 		}
 		writeprocessdata.iops = (g_EtwEventCounters.ullIOWrite - writeprocessdata.initialio) * 1000 / (clock() - writeprocessdata.begin);
@@ -216,15 +217,18 @@ namespace diskmark
 		//瞬时速度置零
 		writeprocessdata.instant_iops = 0;
 		writeprocessdata.instant_mbytespersec = 0;
+		iswriteend = 1;
+		WaitForSingleObject(hwrite4k_end,INFINITE);
 
 		//read
-		WaitForSingleObject(hreadstart4k, INFINITE);
+	
+		SetEvent(hreadstart4k);
 		Sleep(3000);
 		printf("begin 4K read\n");
 		readprocessdata.begin = clock();
 		readprocessdata.initialio = g_EtwEventCounters.ullIORead;
 		readprocessdata.init_totaldata = readspeeddata.totaldata;
-		while (!isreadend)
+		while (readprocessdata.oldtotaldata<testfilesize*1.2||clock()-readprocessdata.begin<min_time)
 		{
 
 			readprocessdata.oldio = g_EtwEventCounters.ullIORead;
@@ -238,7 +242,7 @@ namespace diskmark
 			printf("ioread:%d iops\t", readprocessdata.instant_iops);
 			printf(" %f mb/s \n", readprocessdata.instant_mbytespersec);
 			if (clock() - readprocessdata.begin > waittime)
-				timeout_4kread = TRUE;
+				break;
 
 		}
 		readprocessdata.iops = (g_EtwEventCounters.ullIOWrite - readprocessdata.initialio) * 1000 / (clock() - readprocessdata.begin);
@@ -248,6 +252,8 @@ namespace diskmark
 		//瞬时速度置零
 		readprocessdata.instant_iops = 0;
 		readprocessdata.instant_mbytespersec = 0;
+		isreadend = 1;
+		WaitForSingleObject(hread4k_end,INFINITE);
 		//end of 4k info collect
 	}
 
@@ -255,14 +261,14 @@ namespace diskmark
 	void monitor_4k_64()
 	{//bgin 4k info collect
 		memset(&g_EtwEventCounters, 0, sizeof(struct ETWEventCounters));
-		WaitForSingleObject(hwritestart4k64, INFINITE);
+		SetEvent(hwritestart4k64);
 		Sleep(3000);
 		printf("begin 4K-64thread write\n");
 		//write
 		writeprocessdata_4k64.initialio = g_EtwEventCounters.ullIOWrite;
 		writeprocessdata_4k64.begin = clock();
 		writeprocessdata_4k64.init_totaldata = speeddata_write_4k64.totaldata;
-		while (!iswriteend_4k64)
+		while (writeprocessdata_4k64.oldtotaldata<testfilesize*1.2||clock()- writeprocessdata_4k64.begin<min_time)
 		{
 
 			writeprocessdata_4k64.oldio = g_EtwEventCounters.ullIOWrite;
@@ -275,10 +281,8 @@ namespace diskmark
 			printf("iowrite: %d iops ", writeprocessdata_4k64.instant_iops);
 			printf(" %f mb/s \n", writeprocessdata_4k64.instant_mbytespersec);
 			if (clock() - writeprocessdata_4k64.begin > waittime)
-			{
-				timeout_4k64write = TRUE;
 				break;
-			}
+			
 
 		}
 		writeprocessdata_4k64.iops = (g_EtwEventCounters.ullIOWrite - writeprocessdata_4k64.initialio) * 1000 / (clock() - writeprocessdata_4k64.begin);
@@ -288,16 +292,18 @@ namespace diskmark
 		//瞬时速度置零
 		writeprocessdata_4k64.instant_iops = 0;
 		writeprocessdata_4k64.instant_mbytespersec = 0;
-
+		iswriteend_4k64 = 1;
+		WaitForSingleObject(hwrite4k64_end,INFINITE);
 
 		//read
-		WaitForSingleObject(hreadstart4k64, INFINITE);
+		
+		SetEvent(hreadstart4k64);
 		Sleep(3000);
 		printf("begin 4K-64thread read\n");
 		readprocessdata_4k64.begin = clock();
 		readprocessdata_4k64.initialio = g_EtwEventCounters.ullIORead;
 		readprocessdata_4k64.init_totaldata = speeddata_read_4k64.totaldata;
-		while (!isreadend_4k64)
+		while (readprocessdata_4k64.oldtotaldata<testfilesize*1.2||clock()- readprocessdata_4k64.begin<min_time)
 		{
 
 			readprocessdata_4k64.oldio = g_EtwEventCounters.ullIORead;
@@ -310,7 +316,7 @@ namespace diskmark
 			printf("ioread:%d iops\t", readprocessdata_4k64.instant_iops);
 			printf(" %f mb/s \n", readprocessdata_4k64.instant_mbytespersec);
 			if (clock() - readprocessdata_4k64.begin > waittime)
-				timeout_4k64read = TRUE;
+				break;
 
 		}
 
@@ -320,35 +326,36 @@ namespace diskmark
 		printf(" %f mb/s\n ", readprocessdata_4k64.mbytespersec);
 		readprocessdata_4k64.instant_iops = 0;
 		readprocessdata_4k64.instant_mbytespersec = 0;
+		isreadend_4k64 = 1;
+		WaitForSingleObject(hread4k64_end,INFINITE);
 		//end of 4k info collect
 	}
 
 	void monitor_serial()
 	{//bgin 4k info collect
 		memset(&g_EtwEventCounters, 0, sizeof(struct ETWEventCounters));
-		
-
-		WaitForSingleObject(hwritestartserial, INFINITE);
+	
+		SetEvent(hwritestartserial);
 		Sleep(3000);
 		printf("begin serial write\n");
 		//write
 		writeprocessdata_serial.initialio = g_EtwEventCounters.ullIOWrite;
 		writeprocessdata_serial.begin = clock();
 		writeprocessdata_serial.init_totaldata = speeddata_write_serial.totaldata;
-		while (!iswriteend_serial)
+		while (writeprocessdata_serial.oldtotaldata<testfilesize*4||clock()- writeprocessdata_serial.begin<min_time)
 		{
 
 			writeprocessdata_serial.oldio = g_EtwEventCounters.ullIOWrite;
 
 			writeprocessdata_serial.oldtotaldata = speeddata_write_serial.totaldata;
 			clock_t t_c = clock();
-			Sleep(2000);
+			Sleep(1000);
 			writeprocessdata_serial.instant_iops = (UINT64)((g_EtwEventCounters.ullIOWrite - writeprocessdata_serial.oldio) * 1000 / (clock() - t_c));
 			writeprocessdata_serial.instant_mbytespersec = (float)(speeddata_write_serial.totaldata - writeprocessdata_serial.oldtotaldata) / 1024 / 1.024 / (clock() - t_c);
 			printf("iowrite: %d iops ", writeprocessdata_serial.instant_iops);
 			printf(" %f mb/s \n", writeprocessdata_serial.instant_mbytespersec);
 			if (clock() - writeprocessdata_serial.begin > waittime)
-				timeout_serialwrite = TRUE;
+				break;
 
 		}
 		writeprocessdata_serial.iops = (g_EtwEventCounters.ullIOWrite - writeprocessdata_serial.initialio) * 1000 / (clock() - writeprocessdata_serial.begin);
@@ -358,15 +365,17 @@ namespace diskmark
 		//瞬时速度置零
 		writeprocessdata_serial.instant_iops = 0;
 		writeprocessdata_serial.instant_mbytespersec = 0;
-
+		iswriteend_serial = 1;
+		WaitForSingleObject(hwriteserial_end, INFINITE);
 		//read
-		WaitForSingleObject(hreadstartserial, INFINITE);
+		
+		SetEvent(hreadstartserial);
 		Sleep(3000);
 		printf("begin serial read\n");
 		readprocessdata_serial.begin = clock();
 		readprocessdata_serial.initialio = g_EtwEventCounters.ullIORead;
 		readprocessdata_serial.init_totaldata = speeddata_read_serial.totaldata;
-		while (!isreadend_serial)
+		while (readprocessdata_serial.oldtotaldata<testfilesize*4||clock()- readprocessdata_serial.begin<min_time)
 		{
 
 			readprocessdata_serial.oldio = g_EtwEventCounters.ullIORead;
@@ -380,7 +389,7 @@ namespace diskmark
 			printf("ioread:%d iops\t", readprocessdata_serial.instant_iops);
 			printf(" %f mb/s \n", readprocessdata_serial.instant_mbytespersec);
 			if (clock() - readprocessdata_serial.begin > waittime)
-				timeout_serialread = TRUE;
+				break;
 
 		}
 		readprocessdata_serial.iops = (g_EtwEventCounters.ullIOWrite - readprocessdata_serial.initialio) * 1000 / (clock() - readprocessdata_serial.begin);
@@ -390,6 +399,8 @@ namespace diskmark
 		//瞬时速度置零
 		readprocessdata_serial.instant_iops = 0;
 		readprocessdata_serial.instant_mbytespersec = 0;
+		isreadend_serial = 1;
+		WaitForSingleObject(hreadserial_end,INFINITE);
 	}
 
 
@@ -436,12 +447,12 @@ namespace diskmark
 		DWORD dwBytesWritten, dwBytesReaden;
 		BOOL state = 1;
 		int beginoffset = 0, endoffset = testfilesize;
-		writespeeddata.totaldata = 0;
 
 
-		SetEvent(hwritestart4k);//-------------------性能计数同步--------------------------
+//-------------------性能计数同步--------------------------
+		WaitForSingleObject(hwritestart4k,INFINITE);
 		clock_t begin_time = clock();
-		while (writespeeddata.totaldata < testfilesize*1.2 | clock() - begin_time < min_time) //-------------------性能计数同步--------------------------
+		while (!iswriteend) //-------------------性能计数同步--------------------------
 		{
 			WriteFile(
 				hfile,           // open file handle
@@ -455,21 +466,14 @@ namespace diskmark
 			beginoffset = 1024 * 4 * u;
 			SetFilePointer(hfile, beginoffset, NULL, FILE_BEGIN);
 
-
-			if (timeout_4kwrite)//----------------------超时反馈-------快速结束-------------
-			{
-				iswriteend = 1;
-				break;
-			}
 		}
-		iswriteend = 1;
+		SetEvent(hwrite4k_end);
+		
 
-		beginoffset = 0;
-		readspeeddata.totaldata = 0;
-
-		SetEvent(hreadstart4k);//-------------------性能计数同步--------------------------
+		//-------------------性能计数同步--------------------------
+		WaitForSingleObject(hreadstart4k,INFINITE);
 		begin_time = clock();
-		while (readspeeddata.totaldata < testfilesize*1.2 | clock() - begin_time < min_time)//-------------------性能计数同步--------------------------
+		while (!isreadend)//-------------------性能计数同步--------------------------
 		{
 
 			ReadFile(
@@ -484,22 +488,15 @@ namespace diskmark
 			beginoffset = 1024 * 4 * u;
 			SetFilePointer(hfile, beginoffset, NULL, FILE_BEGIN);
 
-
-			if (timeout_4kread)//----------------------超时反馈-------快速结束-------------
-			{
-
-				isreadend = 1;
-				break;
-			}
 		}
-		isreadend = 1;
+
 		if (!::CloseHandle(hfile))
 		{
 			// Closing the handle failed for some reason.
 			printf("close file error\n");
 		}
 		remove(filepath);
-
+		SetEvent(hread4k_end);
 		//end of 4k test task
 
 	}
@@ -525,11 +522,10 @@ namespace diskmark
 		int bytestransfered;
 		LPOVERLAPPED poverlptemp;
 		clock_t begin_time = clock();
-		while (speeddata_write_4k64.totaldata < testfilesize*3.9 | clock() - begin_time < min_time)
+		while (!iswriteend_4k64)
 		{
 
-			if (timeout_4k64write)
-				break;//超时控制----------反馈-------------------
+			
 			BOOL bRet = GetQueuedCompletionStatus(pmyparam->hiocp, (LPDWORD)&bytestransfered, (PULONG_PTR)&i, &poverlptemp, INFINITE);
 			if (FALSE == bRet)
 			{
@@ -578,10 +574,9 @@ namespace diskmark
 		int bytestransfered;
 		LPOVERLAPPED poverlptemp;
 		clock_t begin_time = clock();
-		while (speeddata_read_4k64.totaldata < testfilesize * 3.9 | clock() - begin_time < min_time)
+		while (!isreadend_4k64)
 		{
-			if (timeout_4k64read)
-				break;  //超时控制----------反馈-------------------
+
 			BOOL bRet = GetQueuedCompletionStatus(pmyparam->hiocp, (LPDWORD)&bytestransfered, (PULONG_PTR)&i, &poverlptemp, INFINITE);
 			if (FALSE == bRet)
 			{
@@ -664,8 +659,10 @@ namespace diskmark
 		myparam.phfiles = &hfiles;
 		myparam.vreadfile_buffer = &vreadfile_buffer;
 
+
+		WaitForSingleObject(hwritestart4k64,INFINITE);
 		//-----------------------4k --------64写开始-------------------------
-		//--------------------创建4k64随机写工作线程----------------------------
+		//--------------------创建4k64随机写工作线程-------------------------
 		HANDLE phwritework4k64[20];
 		for (i = 0; i < writethread_num_4k64; i++)
 			phwritework4k64[i] = CreateThread(NULL, NULL, write_workthread_4k64k, &myparam, 0, NULL);
@@ -683,11 +680,14 @@ namespace diskmark
 				int error = GetLastError();
 			}
 		}
-		SetEvent(hwritestart4k64);
+
+		
 		WaitForMultipleObjects(writethread_num_4k64, phwritework4k64, TRUE, INFINITE);
-		iswriteend_4k64 = TRUE;
+		SetEvent(hwrite4k64_end);
+		
 		//-----------------------4k --------64写结束-------------------------
 
+		WaitForSingleObject(hreadstart4k64,INFINITE);
 		//-----------------------4k --------64读开始--------------------------------------
 		HANDLE phreadwork4k64[20];
 		for (i = 0; i < readthread_num_4k64; i++)
@@ -706,9 +706,10 @@ namespace diskmark
 				int error = GetLastError();
 			}
 		}
-		SetEvent(hreadstart4k64);
+
 		WaitForMultipleObjects(readthread_num_4k64, phreadwork4k64, TRUE, INFINITE);
-		isreadend_4k64 = TRUE;
+		SetEvent(hread4k64_end);
+	
 		//-----------------------4k --------64读结束-------------------------	
 		//删除测试文件----------------------
 		for (i = 0; i < concurent_file_num; i++)
@@ -746,13 +747,14 @@ namespace diskmark
 		//	SetFilePointer(hfile,0,NULL,FILE_BEGIN);
 		DWORD dwBytesWritten, dwBytesReaden;
 		BOOL state = 1;
-		//	int beginoffset = 0,endoffset=1024*1024*1024;
+		//	int beginoffset = 0,endoffset=testfilesize;
 		speeddata_write_serial.totaldata = 0;
 		clock_t warm_begin = clock();
 
-		SetEvent(hwritestartserial);//-------------------性能计数同步--------------------------
+		//-------------------性能计数同步--------------------------
+		WaitForSingleObject(hwritestartserial,INFINITE);
 		clock_t begin_time = clock();
-		while (speeddata_write_serial.totaldata < (UINT64)testfilesize * 2 | clock() - begin_time < min_time) //-------------------性能计数同步--------------------------
+		while (!iswriteend_serial) //-------------------性能计数同步--------------------------
 		{
 			WriteFile(
 				hfile,           // open file handle
@@ -762,15 +764,16 @@ namespace diskmark
 				NULL);
 			speeddata_write_serial.totaldata += dwBytesWritten;
 
-			if (timeout_serialwrite)//----------------------超时反馈-------快速结束-------------
-			{
-				iswriteend_serial = 1;
-				break;
-			}
-		}
-		iswriteend_serial = 1;
-		remove(filepath_write);
 
+		}
+	
+		if (!::CloseHandle(hfile))
+		{
+			// Closing the handle failed for some reason.
+			printf("close file error\n");
+		}
+		remove(tempname_write);
+		SetEvent(hwriteserial_end);
 
 		speeddata_read_serial.totaldata = 0;
 		char tempfilename[30];
@@ -780,11 +783,12 @@ namespace diskmark
 		if (INVALID_HANDLE_VALUE == hpartion_read)
 			int error = GetLastError();
 
-		SetEvent(hreadstartserial);//-------------------性能计数同步--------------------------
+		
+		//-------------------性能计数同步--------------------------
 
-
+		WaitForSingleObject(hreadstartserial,INFINITE);
 		begin_time = clock();
-		while (speeddata_read_serial.totaldata < (UINT64)testfilesize * 1.9 | clock() - begin_time < min_time)//-------------------性能计数同步--------------------------
+		while (!isreadend_serial)//-------------------性能计数同步--------------------------
 		{
 
 			ReadFile(
@@ -795,21 +799,8 @@ namespace diskmark
 				NULL);
 			speeddata_read_serial.totaldata += dwBytesReaden;
 
-			if (timeout_serialread)//----------------------超时反馈-------快速结束-------------
-			{
-
-				isreadend_serial = 1;
-				break;
-			}
 		}
-		isreadend_serial = 1;
-
-
-		if (!::CloseHandle(hfile))
-		{
-			// Closing the handle failed for some reason.
-			printf("close file error\n");
-		}
+		SetEvent(hreadserial_end);
 		//		remove("C:\\serial.data");
 
 		//end of 4k test task
@@ -873,12 +864,19 @@ namespace diskmark
 
 		SetTraceCallback(&DiskIoGuid, eventDiskIo);
 
-		HANDLE hwritestart4k = CreateEvent(NULL, FALSE, FALSE, NULL);
-		HANDLE hreadstart4k = CreateEvent(NULL, FALSE, FALSE, NULL);
-		HANDLE hwritestart4k64 = CreateEvent(NULL, FALSE, FALSE, NULL);
-		HANDLE hreadstart4k64 = CreateEvent(NULL, FALSE, FALSE, NULL);
-		HANDLE hwritestartserial = CreateEvent(NULL, FALSE, FALSE, NULL);
-		HANDLE hreadstartserial = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hwritestart4k = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hreadstart4k = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hwritestart4k64 = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hreadstart4k64 = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hwritestartserial = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hreadstartserial = CreateEvent(NULL, FALSE, FALSE, NULL);
+
+		 hwrite4k_end = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hread4k_end = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hwrite4k64_end = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hread4k64_end = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hwriteserial_end = CreateEvent(NULL, FALSE, FALSE, NULL);
+		 hreadserial_end = CreateEvent(NULL, FALSE, FALSE, NULL);
 
 		HANDLE htraceevent = CreateThread(NULL, NULL, TraceEvents, NULL, 0, NULL);
 
