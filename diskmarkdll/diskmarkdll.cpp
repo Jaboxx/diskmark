@@ -4,15 +4,8 @@
 #include "stdafx.h"
 
 #include"DiskMarkFuncs.h"
-// testfordll.cpp : 定义控制台应用程序的入口点。
-//
 
-#include "stdafx.h"
-// disktestdll.cpp : 定义 DLL 应用程序的导出函数。
-//
-
-
-#include "stdafx.h"
+//#include "stdafx.h"
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -125,6 +118,7 @@ namespace diskmark
 			return NULL;
 		}
 
+
 		memset(pProperties, 0, size);
 
 		pProperties->Wnode.BufferSize = (ULONG)size;
@@ -191,9 +185,7 @@ namespace diskmark
 	void monitor_4k()
 	{//bgin 4k info collect
 		memset(&g_EtwEventCounters, 0, sizeof(struct ETWEventCounters));
-		memset(&writeprocessdata, 0, sizeof(processdata));
-		memset(&readprocessdata, 0, sizeof(processdata));
-
+		
 		WaitForSingleObject(hwritestart4k, INFINITE);
 		Sleep(3000);
 		printf("begin 4K write\n");
@@ -263,9 +255,6 @@ namespace diskmark
 	void monitor_4k_64()
 	{//bgin 4k info collect
 		memset(&g_EtwEventCounters, 0, sizeof(struct ETWEventCounters));
-		memset(&writeprocessdata_4k64, 0, sizeof(processdata));
-		memset(&readprocessdata_4k64, 0, sizeof(processdata));
-
 		WaitForSingleObject(hwritestart4k64, INFINITE);
 		Sleep(3000);
 		printf("begin 4K-64thread write\n");
@@ -337,8 +326,7 @@ namespace diskmark
 	void monitor_serial()
 	{//bgin 4k info collect
 		memset(&g_EtwEventCounters, 0, sizeof(struct ETWEventCounters));
-		memset(&writeprocessdata_serial, 0, sizeof(processdata));
-		memset(&readprocessdata_serial, 0, sizeof(processdata));
+		
 
 		WaitForSingleObject(hwritestartserial, INFINITE);
 		Sleep(3000);
@@ -624,8 +612,6 @@ namespace diskmark
 	void test_4k64()
 	{//------------基础变量预备-------------------
 		int i, j;
-		memset(&speeddata_write_4k64, 0, sizeof(speedtest));
-		memset(&speeddata_read_4k64, 0, sizeof(speedtest));
 		LPCSTR filepath;
 		char *tempfilename = (char *)malloc(20);
 
@@ -745,8 +731,6 @@ namespace diskmark
 		int i = 0, j = 0, k = 1;
 		DWORD buffersize = 1024 * 1024 * 4;
 		char  tempname_write[20];
-
-
 		sprintf_s(tempname_write, 20, "%c:\\serial.data", part_c);
 		LPCSTR filepath_write = tempname_write;
 
@@ -875,6 +859,18 @@ namespace diskmark
 		//	memset(&g_EtwEventCounters, 0, sizeof(struct ETWEventCounters));
 		memset(&writespeeddata, 0, sizeof(speedtest));
 		memset(&readspeeddata, 0, sizeof(speedtest));
+		memset(&speeddata_write_4k64, 0, sizeof(speedtest));
+		memset(&speeddata_read_4k64, 0, sizeof(speedtest));
+		memset(&speeddata_write_serial, 0, sizeof(speedtest));
+		memset(&speeddata_read_serial, 0, sizeof(speedtest));
+
+		memset(&writeprocessdata, 0, sizeof(processdata));
+		memset(&readprocessdata, 0, sizeof(processdata));
+		memset(&writeprocessdata_4k64, 0, sizeof(processdata));
+		memset(&readprocessdata_4k64, 0, sizeof(processdata));
+		memset(&writeprocessdata_serial, 0, sizeof(processdata));
+		memset(&readprocessdata_serial, 0, sizeof(processdata));
+
 		SetTraceCallback(&DiskIoGuid, eventDiskIo);
 
 		HANDLE hwritestart4k = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -929,140 +925,61 @@ namespace diskmark
 
 	}
 	//-----------瞬时速度----------------------------------
-	//4k------write--------------
-	float get_speed_instant_write4k()
+	diskmarkoutput get_instant_data()
 	{
-		return writeprocessdata.instant_mbytespersec;
+		diskmarkoutput output;
+		output.writeiops_4k = writeprocessdata.instant_iops;
+		output.writespeed_4k = writeprocessdata.instant_mbytespersec;
+		output.readiops_4k = readprocessdata.instant_iops;
+		output.readspeed_4k = readprocessdata.instant_mbytespersec;
+
+		output.writeiops_4k64 = writeprocessdata_4k64.instant_iops;
+		output.writespeed_4k64 = writeprocessdata_4k64.instant_mbytespersec;
+		output.readiops_4k64 = readprocessdata_4k64.instant_iops;
+		output.readspeed_4k64 = readprocessdata_4k64.instant_mbytespersec;
+
+		output.writeiops_serial = writeprocessdata_serial.instant_iops;
+		output.writespeed_serial = writeprocessdata_serial.instant_mbytespersec;
+		output.readiops_serial = readprocessdata_serial.instant_iops;
+		output.readspeed_serial = readprocessdata_serial.instant_mbytespersec;
+		return output;
+	
 	}
 
-	UINT64 get_iops_instant_write4k()
+	diskmarkoutput get_output_data()
 	{
-		return writeprocessdata.instant_iops;
-	}
-	//4k-----read------------------
-	float get_speed_instant_read4k()
-	{
-		return readprocessdata.instant_mbytespersec;
+		diskmarkoutput output;
+		output.writeiops_4k = writeprocessdata.iops;
+		output.writespeed_4k = writeprocessdata.mbytespersec;
+		output.readiops_4k = readprocessdata.iops;
+		output.readspeed_4k = readprocessdata.mbytespersec;
+
+		output.writeiops_4k64 = writeprocessdata_4k64.iops;
+		output.writespeed_4k64 = writeprocessdata_4k64.mbytespersec;
+		output.readiops_4k64 = readprocessdata_4k64.iops;
+		output.readspeed_4k64 = readprocessdata_4k64.mbytespersec;
+
+		output.writeiops_serial = writeprocessdata_serial.iops;
+		output.writespeed_serial = writeprocessdata_serial.mbytespersec;
+		output.readiops_serial = readprocessdata_serial.iops;
+		output.readspeed_serial = readprocessdata_serial.mbytespersec;
+		return output;
 	}
 
-	UINT64 get_iops_instant_read4k()
-	{
-		return readprocessdata.instant_iops;
-	}
-	//4k64----write------------------------------------
-	float get_speed_instant_write4k64()
-	{
-		return writeprocessdata_4k64.instant_mbytespersec;
-	}
 
-	UINT64 get_iops_instant_write4k64()
-	{
-		return writeprocessdata_4k64.instant_iops;
-	}
-	//4k64------read---------------------------------
-	float get_speed_instant_read4k64()
-	{
-		return readprocessdata_4k64.instant_mbytespersec;
-	}
-
-	UINT64 get_iops_instant_read4k64()
-	{
-		return readprocessdata_4k64.instant_iops;
-	}
-	//serial---write------------------------------------
-	float get_speed_instant_writeserial()
-	{
-		return writeprocessdata_serial.instant_mbytespersec;
-	}
-	UINT64 get_iops_instant_writeserial()
-	{
-		return writeprocessdata_serial.instant_iops;
-	}
-	//seruial--read--------------
-	float get_speed_instant_readserial()
-	{
-		return readprocessdata_serial.instant_mbytespersec;
-	}
-
-	UINT64 get_iops_instant_readserial()
-	{
-		return readprocessdata_serial.instant_iops;
-	}
-	//----------最终速度----------------------------------
-	//4k------write--------------
-	float get_speed_write4k()
-	{
-		return writeprocessdata.mbytespersec;
-	}
-
-	UINT64 get_iops_write4k()
-	{
-		return writeprocessdata.iops;
-	}
-	//4k-----read------------------
-	float get_speed_read4k()
-	{
-		return readprocessdata.mbytespersec;
-	}
-
-	UINT64 get_iops_read4k()
-	{
-		return readprocessdata.iops;
-	}
-	//4k64----write------------------------------------
-	float get_speed_write4k64()
-	{
-		return writeprocessdata_4k64.mbytespersec;
-	}
-
-	UINT64 get_iops_write4k64()
-	{
-		return writeprocessdata_4k64.iops;
-	}
-	//4k64------read---------------------------------
-	float get_speed_read4k64()
-	{
-		return readprocessdata_4k64.mbytespersec;
-	}
-
-	UINT64 get_iops_read4k64()
-	{
-		return readprocessdata_4k64.iops;
-	}
-	//serial---write------------------------------------
-	float get_speed_writeserial()
-	{
-		return writeprocessdata_serial.mbytespersec;
-	}
-	UINT64 get_iops_writeserial()
-	{
-		return writeprocessdata_serial.iops;
-	}
-	//seruial--read--------------
-	float get_speed_readserial()
-	{
-		return readprocessdata_serial.mbytespersec;
-	}
-
-	UINT64 get_iops_readserial()
-	{
-		return readprocessdata_serial.iops;
-	}
-
-	void fasttest()
+	diskmarkoutput fasttest()
 	{
 
 		initial();
 
-
-		startdisktest('C', 0, 0, 1);
-
+		startdisktest('C', 1, 1, 1);
 
 		endtest();
 
+		return get_output_data();
 	}
 
-	int main()
+/*	int main()
 	{
 		initial();
 
@@ -1075,6 +992,7 @@ namespace diskmark
 
 		return 0;
 	}
+	*/
 }//命名空间结束
 /*
 int main()
