@@ -40,3 +40,10 @@ namespace diskmark
 	DISKMARKFUNCSDLL_API	diskmarkoutput get_output_data(void);
 
 }
+/*直接调用fasttest,函数结束后会返回测试数据，测试设置全是默认
+
+如要对测试进行设置，先执行initial函数，然后通过setwaittime和setmintime可以设置单项测试时间，接着startdisktest启动测试
+
+测试期间可以通过get_instant_data获得当前测试状态（瞬时速度），也可以通过get_output_data获得已经完成的测试结果，但必须另外开线程，因为测试会阻塞调用相关函数的线程。
+
+*/
